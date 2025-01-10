@@ -6,77 +6,103 @@
 #include<string.h>
 #include<assert.h>
 
-#pragma warning(disable : 4996)
-char** str_split(char* a_str, const char a_delim)
+
+#define TOK_DELIM " \t\r\n"
+#define BUFFER_SIZE 1024
+
+char* read_input();
+char** split_input(char*);
+int execute(char** list);
+
+int execute(char** list)
 {
-    char** result = 0;
-    size_t count = 0;
-    char* tmp = a_str;
-    char* last_comma = 0;
-    char delim[2];
-    delim[0] = a_delim;
-    delim[1] = 0;
+    int status;
+    pid_t pid = fork();
 
-    /* Count how many elements will be extracted. */
-    while (*tmp)
+    if (strcmp(list[0], "exit") == 0)
     {
-        if (a_delim == *tmp)
-        {
-            count++;
-            last_comma = tmp;
-        }
-        tmp++;
+        return 0;
     }
-
-    /* Add space for trailing token. */
-    count += last_comma < (a_str + strlen(a_str) - 1);
-
-    /* Add space for terminating null string so caller
-       knows where the list of returned strings ends. */
-    count++;
-
-    result = malloc(sizeof(char*) * count);
-
-    if (result)
-    {
-        size_t idx = 0;
-        char* token = strtok(a_str, delim);
-
-        while (token)
-        {
-            assert(idx < count);
-            *(result + idx++) = strdup(token);
-            token = strtok(0, delim);
-        }
-        assert(idx == count - 1);
-        *(result + idx) = 0;
-    }
-
-    return result;
-}
-
-int main()
-{
  
-        char buf[100];
-        printf("$ ");
-        scanf("%s", buf);
-        char** argument_list = str_split(buf,' ');
-
-        pid_t process = fork();
-        if (process == 0)
+    if (strcmp(list[0],"cd") == 0)
+    {
+        chdir(list[1]);
+        waitpid(pid, &status, WUNTRACED);
+    }
+    else
+    {
+        if (pid == 0)
         {
-            perror("Child process");
-            execvp(argument_list[0], argument_list);
-            exit(0);
+            printf("Child proccess\n");
+            execvp(list[0], list);
+            exit(EXIT_FAILURE);
         }
         else
         {
-            printf("PID of process: %d\n", process);
-            int i = 1;
-            wait(&i);
+            printf("Child proccess PID: %d\n",pid);
+            waitpid(pid, &status, WUNTRACED);
         }
-    
+    }
 
+    return 1;
+}
+
+
+
+char** split_input(char* line) {
+    char** tokens = malloc(BUFFER_SIZE * sizeof(char*));
+    char* token;
+    int index = 0;
+
+    token = strtok(line, TOK_DELIM);
+    while (token != NULL)
+    {
+        tokens[index] = token;
+        index++;
+
+        token = strtok(NULL, TOK_DELIM);
+    }
+
+    tokens[index] = NULL;
+
+    return tokens;
+}
+
+char* read_input() {
+    char* buffer = (char*)malloc(BUFFER_SIZE * sizeof(char));
+    int index = 0;
+    char c;
+    while (1)
+    {
+        c = getchar();
+        if (c == EOF || c == '\n')
+        {
+            buffer[index] = '\0';
+            return buffer;
+        }
+        else
+        {
+            buffer[index] = c;
+        }
+        index++;
+    }
+}
+
+int main() {
+
+    char* input;
+    char** argument_list;
+    int status = 1;
+
+    while (status)
+    {
+        printf("$ ");
+        input = read_input();
+        argument_list = split_input(input);
+        status = execute(argument_list);
+
+        free(input);
+        free(argument_list);
+    }
     return 0;
 }
